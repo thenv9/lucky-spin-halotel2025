@@ -2,150 +2,181 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Vòng quay may mắn</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <title>Customer Care Halotel lucky spin</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 30px; }
-    input { margin: 5px; padding: 5px; }
-    button { padding: 10px 20px; margin: 10px; }
+    body{font-family:'Segoe UI',Tahoma,sans-serif;text-align:center;background:#f4f4f9;padding-top:20px;}
+    input{margin:5px;padding:8px;border-radius:5px;border:1px solid #ccc;font-size:14px;}
+    button{padding:10px 20px;margin:10px;border:none;border-radius:5px;background:linear-gradient(45deg,#4CAF50,#81C784);color:#fff;font-size:16px;cursor:pointer;transition:background .3s;}
+    button:hover{background:linear-gradient(45deg,#388E3C,#66BB6A);}
+    h2{font-size:26px;margin-bottom:20px;}
+    .wheel-wrap{position:relative;width:500px;margin:0 auto;}
+    #canvas{background:#fff;border-radius:50%;box-shadow:0 4px 10px rgba(0,0,0,.2);display:block;margin:0 auto;}
+    /* Kim ở chính giữa phía trên, hướng xuống */
+    #pointer{position:absolute;left:50%;transform:translateX(-50%);width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:36px solid red;top:-6px;z-index:10;}
   </style>
 </head>
 <body>
-  <h2>🎯 Vòng quay may mắn</h2>
+  <h2>🎯 Customer Care Halotel lucky spin</h2>
 
-  <label>Branch: </label>
-  <input type="text" id="branch" placeholder="Nhập Branch"><br><br>
+  <input type="text" id="branch" placeholder="Enter Branch">
+  <input type="text" id="phone" placeholder="Enter Phone Number"><br>
 
-  <label>Phone Number: </label>
-  <input type="text" id="phone" placeholder="Nhập số điện thoại"><br><br>
-
-  <button onclick="startSpin()">Quay</button>
+  <button onclick="startSpin()">Spin</button>
   <button onclick="resetWheel()">Reset</button><br><br>
 
-  <canvas id="canvas" width="500" height="500"></canvas>
+  <div class="wheel-wrap">
+    <div id="pointer"></div>
+    <canvas id="canvas" width="500" height="500"></canvas>
+  </div>
 
-  <!-- Winwheel.js nhúng trực tiếp -->
   <script>
-    class Winwheel {
-      constructor(properties) {
-        this.segments = properties.segments;
-        this.numSegments = properties.numSegments;
-        this.outerRadius = properties.outerRadius || 200;
-        this.canvasId = properties.canvasId;
-        this.animation = properties.animation;
-        this.ctx = document.getElementById(this.canvasId).getContext("2d");
+    // Easing: chậm dần đều
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+    class Winwheel{
+      constructor(props){
+        this.segments = props.segments;
+        this.numSegments = props.numSegments;
+        this.outerRadius = props.outerRadius || 240;
+        this.animation = props.animation;
+        const canvas = document.getElementById(props.canvasId);
+        this.ctx = canvas.getContext('2d');
+        this.cw = canvas.width; this.ch = canvas.height;
+        this.cx = this.cw/2; this.cy = this.ch/2;
+
+        this.angle = 0;          // góc hiện tại (độ)
+        this.isSpinning = false; // chống bấm nhiều lần
         this.draw();
       }
-      draw() {
-        let ctx = this.ctx;
-        let numSegments = this.numSegments;
-        let segAngle = (2 * Math.PI) / numSegments;
-        ctx.clearRect(0, 0, 500, 500);
-        for (let i = 0; i < numSegments; i++) {
-          let angle = i * segAngle;
-          ctx.beginPath();
-          ctx.moveTo(250, 250);
-          ctx.arc(250, 250, this.outerRadius, angle, angle + segAngle);
-          ctx.fillStyle = this.segments[i].fillStyle;
-          ctx.fill();
+
+      draw(){
+        const ctx = this.ctx;
+        const segRad = (2*Math.PI)/this.numSegments;
+
+        ctx.clearRect(0,0,this.cw,this.ch);
+        ctx.save();
+        ctx.translate(this.cx, this.cy);
+        ctx.rotate(this.angle * Math.PI/180);
+
+        for(let i=0;i<this.numSegments;i++){
+          const start = i*segRad, end = start + segRad;
+          ctx.beginPath(); ctx.moveTo(0,0);
+          ctx.arc(0,0,this.outerRadius,start,end);
+          ctx.closePath();
+          ctx.fillStyle = this.segments[i].fillStyle; ctx.fill();
+
           ctx.save();
-          ctx.translate(250, 250);
-          ctx.rotate(angle + segAngle / 2);
-          ctx.fillStyle = "black";
-          ctx.font = "14px Arial";
-          ctx.fillText(this.segments[i].text, 90, 5);
+          ctx.rotate(start + segRad/2);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right';
+          ctx.fillText(this.segments[i].text, this.outerRadius - 10, 5);
           ctx.restore();
         }
-        // vẽ kim chỉ
-        ctx.beginPath();
-        ctx.moveTo(250, 20);
-        ctx.lineTo(240, 50);
-        ctx.lineTo(260, 50);
-        ctx.fillStyle = "red";
-        ctx.fill();
+        ctx.restore();
       }
-      startAnimation() {
-        let spins = this.animation.spins;
-        let duration = this.animation.duration * 1000;
-        let finalAngle = Math.random() * 360 + spins * 360;
-        let start = performance.now();
-        let animate = (now) => {
-          let progress = Math.min((now - start) / duration, 1);
-          let angle = finalAngle * progress;
-          this.ctx.save();
-          this.ctx.translate(250, 250);
-          this.ctx.rotate((angle * Math.PI) / 180);
-          this.ctx.translate(-250, -250);
+
+      /** Quay chậm dần để dừng đúng ô targetIndex */
+      spinToIndex(targetIndex, spins=6, duration=6){
+        if(this.isSpinning) return;
+        this.isSpinning = true;
+
+        const segA = 360/this.numSegments;
+        const pointerDeg = 270; // kim ở 12 giờ
+
+        // Góc tâm ô target trong trạng thái gốc (angle = 0)
+        const targetCenter = targetIndex*segA + segA/2; // 0..360 theo chiều kim đồng hồ từ hướng 3 giờ
+
+        // Góc tuyệt đối cần dừng: đưa targetCenter về đúng 270°
+        const targetAbs = ((pointerDeg - targetCenter) % 360 + 360) % 360; // 0..360
+
+        // Góc hiện tại (0..360)
+        const startAngle = ((this.angle % 360) + 360) % 360;
+
+        // Δ góc từ trạng thái hiện tại đến góc tuyệt đối
+        const deltaToTarget = ((targetAbs - startAngle) % 360 + 360) % 360;
+
+        // Tổng góc quay thêm (kèm số vòng đầy)
+        const totalDelta = spins*360 + deltaToTarget;
+
+        const startTime = performance.now();
+        const durMs = duration*1000;
+
+        const animate = (now)=>{
+          const t = Math.min((now - startTime)/durMs, 1);
+          const eased = easeOutCubic(t);
+          this.angle = startAngle + totalDelta*eased;
           this.draw();
-          this.ctx.restore();
-          if (progress < 1) requestAnimationFrame(animate);
-          else {
-            let segAngle = 360 / this.numSegments;
-            let winningIndex = Math.floor(((360 - (finalAngle % 360)) % 360) / segAngle);
-            let prize = this.segments[winningIndex].text;
-            this.animation.callbackFinished({ text: prize });
+
+          if(t < 1){
+            requestAnimationFrame(animate);
+          }else{
+            this.angle = (startAngle + totalDelta) % 360; // chuẩn hóa
+            this.draw();
+            this.isSpinning = false;
+            this.animation.callbackFinished({ text: this.segments[targetIndex].text, index: targetIndex });
           }
         };
         requestAnimationFrame(animate);
       }
     }
 
-    // Tạo vòng quay
-    let wheel = new Winwheel({
-      'canvasId': 'canvas',
-      'numSegments': 6,
-      'outerRadius': 200,
-      'segments': [
-        {'fillStyle': '#eae56f', 'text': 'AIRTIME 500 TSH'},
-        {'fillStyle': '#89f26e', 'text': '10 MINS'},
-        {'fillStyle': '#7de6ef', 'text': '50 SMS'},
-        {'fillStyle': '#e7706f', 'text': '200MB DATA'},
-        {'fillStyle': '#ff9d76', 'text': '500 POINTS VUNA'},
-        {'fillStyle': '#c77dff', 'text': '1000 POINTS VUNA'}
+    // Khởi tạo
+    const wheel = new Winwheel({
+      canvasId: 'canvas',
+      numSegments: 6,
+      outerRadius: 240, // thu nhỏ viền trắng
+      segments: [
+        { fillStyle:'#f44336', text:'AIRTIME 500 TSH' },
+        { fillStyle:'#e91e63', text:'10 MINS CALL' },
+        { fillStyle:'#9c27b0', text:'50 SMS' },
+        { fillStyle:'#3f51b5', text:'200MB DATA' },
+        { fillStyle:'#03a9f4', text:'500 POINTS VUNA' },
+        { fillStyle:'#4caf50', text:'1000 POINTS VUNA' },
       ],
-      'animation': {
-        'type': 'spinToStop',
-        'duration': 5,
-        'spins': 8,
-        'callbackFinished': logResult
+      animation:{
+        duration: 6,   // giây
+        spins: 6,      // số vòng đầy
+        callbackFinished: logResult
       }
     });
 
-    function startSpin() {
-      wheel.startAnimation();
+    function startSpin(){
+      // Bốc ngẫu nhiên 1 ô thắng
+      const idx = Math.floor(Math.random() * wheel.numSegments);
+      // Quay chậm dần đúng vào ô đó
+      wheel.spinToIndex(idx, wheel.animation.spins, wheel.animation.duration);
     }
 
-    function resetWheel() {
+    function resetWheel(){
+      if(wheel.isSpinning) return;
+      wheel.angle = 0;
       wheel.draw();
-      document.getElementById("branch").value = "";
-      document.getElementById("phone").value = "";
+      document.getElementById('branch').value = '';
+      document.getElementById('phone').value = '';
     }
 
-    function logResult(indicatedSegment) {
-      let branch = document.getElementById("branch").value.trim();
-      let phone = document.getElementById("phone").value.trim();
-      let reward = indicatedSegment.text;
+    function logResult(r){
+      const branch = document.getElementById('branch').value.trim();
+      const phone  = document.getElementById('phone').value.trim();
+      const reward = r.text;
 
-      if (!branch || !phone) {
-        alert("⚠️ Vui lòng nhập Branch và Phone Number!");
+      if(!branch || !phone){
+        alert('⚠️ Please enter Branch and Phone Number!');
         return;
       }
 
-      let payload = JSON.stringify({ branch, phone, reward });
+      alert('🎉 Congratulations! You won: ' + reward);
 
-      fetch("https://script.google.com/macros/s/AKfycbzCc-xHakbsexeJCnL7-sxfkluHYK4RXIfwj6bQFrjV5djdU_XKJVFwAxEGPJYnYcmC/exec", {
-        method: "POST",
-        body: payload,
-        headers: { "Content-Type": "application/json" }
-      }).then(res => {
-        if (res.ok) {
-          alert("✅ Đã lưu: " + branch + " | " + phone + " | " + reward);
-        } else {
-          alert("❌ Lỗi khi lưu dữ liệu!");
-        }
-      }).catch(err => {
-        alert("❌ Không thể kết nối tới Google Script!");
-      });
+      // Đẩy sang Google Apps Script
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBwfmlJHwCJwVP19ZevVFMxTIbVu6nlC4Emaknh1WOwqoKaFxSpC9SUZ56stPUEKs/exec';
+      const url = scriptUrl +
+        '?branch=' + encodeURIComponent(branch) +
+        '&phone=' + encodeURIComponent(phone) +
+        '&reward=' + encodeURIComponent(reward);
+
+      fetch(url, { method:'GET' })
+        .then(res => res.json())
+        .then(data => console.log('✅ Result sent:', data))
+        .catch(err => console.error('❌ Cannot connect to Google Script!', err));
     }
   </script>
 </body>
