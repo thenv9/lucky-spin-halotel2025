@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vòng quay may mắn</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 30px; }
+    input { margin: 5px; padding: 5px; }
+    button { padding: 10px 20px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h2>🎯 Vòng quay may mắn</h2>
+
+  <label>Branch: </label>
+  <input type="text" id="branch" placeholder="Nhập Branch"><br><br>
+
+  <label>Phone Number: </label>
+  <input type="text" id="phone" placeholder="Nhập số điện thoại"><br><br>
+
+  <button onclick="startSpin()">Quay</button>
+  <button onclick="resetWheel()">Reset</button><br><br>
+
+  <canvas id="canvas" width="500" height="500"></canvas>
+
+  <!-- Winwheel.js nhúng trực tiếp -->
+  <script>
+    class Winwheel {
+      constructor(properties) {
+        this.segments = properties.segments;
+        this.numSegments = properties.numSegments;
+        this.outerRadius = properties.outerRadius || 200;
+        this.canvasId = properties.canvasId;
+        this.animation = properties.animation;
+        this.ctx = document.getElementById(this.canvasId).getContext("2d");
+        this.draw();
+      }
+      draw() {
+        let ctx = this.ctx;
+        let numSegments = this.numSegments;
+        let segAngle = (2 * Math.PI) / numSegments;
+        ctx.clearRect(0, 0, 500, 500);
+        for (let i = 0; i < numSegments; i++) {
+          let angle = i * segAngle;
+          ctx.beginPath();
+          ctx.moveTo(250, 250);
+          ctx.arc(250, 250, this.outerRadius, angle, angle + segAngle);
+          ctx.fillStyle = this.segments[i].fillStyle;
+          ctx.fill();
+          ctx.save();
+          ctx.translate(250, 250);
+          ctx.rotate(angle + segAngle / 2);
+          ctx.fillStyle = "black";
+          ctx.font = "14px Arial";
+          ctx.fillText(this.segments[i].text, 90, 5);
+          ctx.restore();
+        }
+        // vẽ kim chỉ
+        ctx.beginPath();
+        ctx.moveTo(250, 20);
+        ctx.lineTo(240, 50);
+        ctx.lineTo(260, 50);
+        ctx.fillStyle = "red";
+        ctx.fill();
+      }
+      startAnimation() {
+        let spins = this.animation.spins;
+        let duration = this.animation.duration * 1000;
+        let finalAngle = Math.random() * 360 + spins * 360;
+        let start = performance.now();
+        let animate = (now) => {
+          let progress = Math.min((now - start) / duration, 1);
+          let angle = finalAngle * progress;
+          this.ctx.save();
+          this.ctx.translate(250, 250);
+          this.ctx.rotate((angle * Math.PI) / 180);
+          this.ctx.translate(-250, -250);
+          this.draw();
+          this.ctx.restore();
+          if (progress < 1) requestAnimationFrame(animate);
+          else {
+            let segAngle = 360 / this.numSegments;
+            let winningIndex = Math.floor(((360 - (finalAngle % 360)) % 360) / segAngle);
+            let prize = this.segments[winningIndex].text;
+            this.animation.callbackFinished({ text: prize });
+          }
+        };
+        requestAnimationFrame(animate);
+      }
+    }
+
+    // Tạo vòng quay
+    let wheel = new Winwheel({
+      'canvasId': 'canvas',
+      'numSegments': 6,
+      'outerRadius': 200,
+      'segments': [
+        {'fillStyle': '#eae56f', 'text': 'AIRTIME 500 TSH'},
+        {'fillStyle': '#89f26e', 'text': '10 MINS'},
+        {'fillStyle': '#7de6ef', 'text': '50 SMS'},
+        {'fillStyle': '#e7706f', 'text': '200MB DATA'},
+        {'fillStyle': '#ff9d76', 'text': '500 POINTS VUNA'},
+        {'fillStyle': '#c77dff', 'text': '1000 POINTS VUNA'}
+      ],
+      'animation': {
+        'type': 'spinToStop',
+        'duration': 5,
+        'spins': 8,
+        'callbackFinished': logResult
+      }
+    });
+
+    function startSpin() {
+      wheel.startAnimation();
+    }
+
+    function resetWheel() {
+      wheel.draw();
+      document.getElementById("branch").value = "";
+      document.getElementById("phone").value = "";
+    }
+
+    function logResult(indicatedSegment) {
+      let branch = document.getElementById("branch").value.trim();
+      let phone = document.getElementById("phone").value.trim();
+      let reward = indicatedSegment.text;
+
+      if (!branch || !phone) {
+        alert("⚠️ Vui lòng nhập Branch và Phone Number!");
+        return;
+      }
+
+      let payload = JSON.stringify({ branch, phone, reward });
+
+      fetch("https://script.google.com/macros/s/AKfycbzCc-xHakbsexeJCnL7-sxfkluHYK4RXIfwj6bQFrjV5djdU_XKJVFwAxEGPJYnYcmC/exec", {
+        method: "POST",
+        body: payload,
+        headers: { "Content-Type": "application/json" }
+      }).then(res => {
+        if (res.ok) {
+          alert("✅ Đã lưu: " + branch + " | " + phone + " | " + reward);
+        } else {
+          alert("❌ Lỗi khi lưu dữ liệu!");
+        }
+      }).catch(err => {
+        alert("❌ Không thể kết nối tới Google Script!");
+      });
+    }
+  </script>
+</body>
+</html>
