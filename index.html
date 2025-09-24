@@ -2,26 +2,36 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Customer Care Halotel lucky spin</title>
+  <title>Lucky Wheel</title>
   <style>
     body{font-family:'Segoe UI',Tahoma,sans-serif;text-align:center;background:#f4f4f9;padding-top:20px;}
     input{margin:5px;padding:8px;border-radius:5px;border:1px solid #ccc;font-size:14px;}
     button{padding:10px 20px;margin:10px;border:none;border-radius:5px;background:linear-gradient(45deg,#4CAF50,#81C784);color:#fff;font-size:16px;cursor:pointer;transition:background .3s;}
     button:hover{background:linear-gradient(45deg,#388E3C,#66BB6A);}
     h2{font-size:26px;margin-bottom:20px;}
+
     .wheel-wrap{position:relative;width:500px;margin:0 auto;}
     #canvas{background:#fff;border-radius:50%;box-shadow:0 4px 10px rgba(0,0,0,.2);display:block;margin:0 auto;}
-    /* Kim ở chính giữa phía trên, hướng xuống */
-    #pointer{position:absolute;left:50%;transform:translateX(-50%);width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:36px solid red;top:-6px;z-index:10;}
+
+    /* Kim tam giác ở trên, hướng xuống */
+    #pointer{
+      position:absolute;
+      left:50%;transform:translateX(-50%);
+      width:0;height:0;
+      border-left:18px solid transparent;
+      border-right:18px solid transparent;
+      border-top:36px solid red;
+      top:-6px;z-index:10;
+    }
   </style>
 </head>
 <body>
-  <h2>🎯 Customer Care Halotel lucky spin</h2>
+  <h2>🎯 Lucky Wheel</h2>
 
   <input type="text" id="branch" placeholder="Enter Branch">
-  <input type="text" id="phone" placeholder="Enter Phone Number"><br>
+  <input type="tel" id="phone" placeholder="Enter Phone Number"><br>
 
-  <button onclick="startSpin()">Spin</button>
+  <button id="spinBtn" onclick="startSpin()">Spin</button>
   <button onclick="resetWheel()">Reset</button><br><br>
 
   <div class="wheel-wrap">
@@ -30,7 +40,6 @@
   </div>
 
   <script>
-    // Easing: chậm dần đều
     const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
     class Winwheel{
@@ -44,8 +53,8 @@
         this.cw = canvas.width; this.ch = canvas.height;
         this.cx = this.cw/2; this.cy = this.ch/2;
 
-        this.angle = 0;          // góc hiện tại (độ)
-        this.isSpinning = false; // chống bấm nhiều lần
+        this.angle = 0;
+        this.isSpinning = false;
         this.draw();
       }
 
@@ -74,7 +83,6 @@
         ctx.restore();
       }
 
-      /** Quay chậm dần để dừng đúng ô targetIndex */
       spinToIndex(targetIndex, spins=6, duration=6){
         if(this.isSpinning) return;
         this.isSpinning = true;
@@ -82,20 +90,15 @@
         const segA = 360/this.numSegments;
         const pointerDeg = 270; // kim ở 12 giờ
 
-        // Góc tâm ô target trong trạng thái gốc (angle = 0)
-        const targetCenter = targetIndex*segA + segA/2; // 0..360 theo chiều kim đồng hồ từ hướng 3 giờ
+        const targetCenter = targetIndex*segA + segA/2;
+        const targetAbs = ((pointerDeg - targetCenter) % 360 + 360) % 360;
 
-        // Góc tuyệt đối cần dừng: đưa targetCenter về đúng 270°
-        const targetAbs = ((pointerDeg - targetCenter) % 360 + 360) % 360; // 0..360
-
-        // Góc hiện tại (0..360)
         const startAngle = ((this.angle % 360) + 360) % 360;
-
-        // Δ góc từ trạng thái hiện tại đến góc tuyệt đối
         const deltaToTarget = ((targetAbs - startAngle) % 360 + 360) % 360;
-
-        // Tổng góc quay thêm (kèm số vòng đầy)
         const totalDelta = spins*360 + deltaToTarget;
+
+        const btn = document.getElementById('spinBtn');
+        if (btn) btn.disabled = true;
 
         const startTime = performance.now();
         const durMs = duration*1000;
@@ -109,9 +112,10 @@
           if(t < 1){
             requestAnimationFrame(animate);
           }else{
-            this.angle = (startAngle + totalDelta) % 360; // chuẩn hóa
+            this.angle = (startAngle + totalDelta) % 360;
             this.draw();
             this.isSpinning = false;
+            if (btn) btn.disabled = false;
             this.animation.callbackFinished({ text: this.segments[targetIndex].text, index: targetIndex });
           }
         };
@@ -119,11 +123,10 @@
       }
     }
 
-    // Khởi tạo
     const wheel = new Winwheel({
       canvasId: 'canvas',
       numSegments: 6,
-      outerRadius: 240, // thu nhỏ viền trắng
+      outerRadius: 240,
       segments: [
         { fillStyle:'#f44336', text:'AIRTIME 500 TSH' },
         { fillStyle:'#e91e63', text:'10 MINS CALL' },
@@ -133,16 +136,26 @@
         { fillStyle:'#4caf50', text:'1000 POINTS VUNA' },
       ],
       animation:{
-        duration: 6,   // giây
-        spins: 6,      // số vòng đầy
+        duration: 6,
+        spins: 6,
         callbackFinished: logResult
       }
     });
 
     function startSpin(){
-      // Bốc ngẫu nhiên 1 ô thắng
+      const branch = document.getElementById('branch').value.trim();
+      const phone  = document.getElementById('phone').value.trim();
+
+      if(!branch){
+        alert('⚠️ Please enter Branch!');
+        return;
+      }
+      if(!phone){
+        alert('⚠️ Please enter Phone Number!');
+        return;
+      }
+
       const idx = Math.floor(Math.random() * wheel.numSegments);
-      // Quay chậm dần đúng vào ô đó
       wheel.spinToIndex(idx, wheel.animation.spins, wheel.animation.duration);
     }
 
@@ -159,14 +172,8 @@
       const phone  = document.getElementById('phone').value.trim();
       const reward = r.text;
 
-      if(!branch || !phone){
-        alert('⚠️ Please enter Branch and Phone Number!');
-        return;
-      }
-
       alert('🎉 Congratulations! You won: ' + reward);
 
-      // Đẩy sang Google Apps Script
       const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBwfmlJHwCJwVP19ZevVFMxTIbVu6nlC4Emaknh1WOwqoKaFxSpC9SUZ56stPUEKs/exec';
       const url = scriptUrl +
         '?branch=' + encodeURIComponent(branch) +
